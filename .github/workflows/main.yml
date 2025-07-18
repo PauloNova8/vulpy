@@ -1,0 +1,78 @@
+name: Snyk Full Scan (Python Project)
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install Snyk CLI
+        uses: snyk/actions/setup@v2
+        with:
+          version: latest
+
+      - name: Authenticate Snyk
+        run: snyk auth ${{ secrets.SNYK_TOKEN }}
+
+      # 🔎 SCA: Análise de dependências Python
+      - name: Snyk Open Source (SCA)
+        run: snyk test --file=requirements.txt --package-manager=pip
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      # 🧠 SAST: Análise de código Python (Flask)
+      - name: Snyk Code (SAST)
+        run: snyk code test
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      # 🏗 Container: build + scan
+      - name: Build Docker image
+        run: docker build -t vulpy:latest .
+
+      - name: Snyk Container scan
+        uses: snyk/actions/docker@v1
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          image: vulpy:latest
+          args: test
+
+      # ⚙ IaC: se houver Terraform ou outros
+      - name: Snyk IaC scan
+        if: ${{ hashFiles('terraform/**.tf') != '' }}
+        run: snyk iac test terraform/
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      # 📡 Opcional: enviar projeto para o painel do Snyk
+      - name: Monitor project in Snyk Dashboard
+        run: |
+          snyk monitor --file=requirements.txt --package-manager=pip
+          snyk code monitor
+          snyk container monitor vulpy:latest
+          snyk iac monitor terraform/
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
