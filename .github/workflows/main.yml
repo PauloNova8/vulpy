@@ -16,7 +16,7 @@ jobs:
 
     steps:
       - name: 📥 Checkout código
-        uses: actions/checkout@v4
+        uses: actions/checkout@master
 
       - name: 🐍 Configurar Python
         uses: actions/setup-python@v4
@@ -34,12 +34,12 @@ jobs:
       - name: 🔐 Autenticar Snyk
         run: snyk auth ${{ secrets.SNYK_TOKEN }}
 
-      - name: 📦 SCA - Analisar dependências
+      - name: 📦 Snyk SCA - Dependências
         run: snyk test --file=requirements.txt --package-manager=pip
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      - name: 🧠 SAST - Analisar código
+      - name: 🧠 Snyk SAST - Código
         run: snyk code test
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
@@ -47,7 +47,7 @@ jobs:
       - name: 🐳 Build da imagem Docker
         run: docker build -t vulpy:latest .
 
-      - name: 🐳 Container Scan
+      - name: 🐳 Snyk Container Scan
         uses: snyk/actions/docker@v1
         with:
           image: vulpy:latest
@@ -55,13 +55,13 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      - name: ⚙️ IaC Scan (Terraform, se existir)
+      - name: ⚙️ IaC Scan (Terraform)
         if: ${{ hashFiles('terraform/**.tf') != '' }}
         run: snyk iac test terraform/
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      - name: ☁️ Monitorar no painel do Snyk
+      - name: ☁️ Snyk Monitor
         run: |
           snyk monitor --file=requirements.txt --package-manager=pip
           snyk code monitor
