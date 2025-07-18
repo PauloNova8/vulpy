@@ -1,4 +1,4 @@
-name: 🔐 Snyk Full Security Scan (Python)
+name: 🔐 Snyk Scan (Python project)
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  snyk-security:
+  snyk:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -16,9 +16,9 @@ jobs:
 
     steps:
       - name: 📥 Checkout código
-        uses: actions/checkout@master
+        uses: actions/checkout@master  # conforme você pediu
 
-      - name: 🐍 Configurar Python
+      - name: 🐍 Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
@@ -28,23 +28,19 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: 🧰 Instalar Snyk CLI
-        uses: snyk/actions/setup@v1
-
-      - name: 🔐 Autenticar Snyk
-        run: snyk auth ${{ secrets.SNYK_TOKEN }}
-
-      - name: 📦 Snyk SCA - Dependências
-        run: snyk test --file=requirements.txt --package-manager=pip
+      - name: 🔎 Snyk Python Scan (SCA)
+        uses: snyk/actions/python@v1
+        with:
+          args: test --file=requirements.txt --package-manager=pip
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      - name: 🧠 Snyk SAST - Código
+      - name: 🧠 Snyk SAST (código fonte)
         run: snyk code test
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      - name: 🐳 Build da imagem Docker
+      - name: 🐳 Build Docker image
         run: docker build -t vulpy:latest .
 
       - name: 🐳 Snyk Container Scan
@@ -58,14 +54,5 @@ jobs:
       - name: ⚙️ IaC Scan (Terraform)
         if: ${{ hashFiles('terraform/**.tf') != '' }}
         run: snyk iac test terraform/
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-
-      - name: ☁️ Snyk Monitor
-        run: |
-          snyk monitor --file=requirements.txt --package-manager=pip
-          snyk code monitor
-          snyk container monitor vulpy:latest
-          snyk iac monitor terraform/
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
