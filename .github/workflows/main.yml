@@ -1,4 +1,4 @@
-name: Snyk Full Scan (Python Project)
+name: 🔐 Snyk Full Scan for Python App
 
 on:
   push:
@@ -8,67 +8,60 @@ on:
   workflow_dispatch:
 
 jobs:
-  security:
+  snyk-security:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       security-events: write
 
     steps:
-      - name: Checkout repository
+      - name: 📥 Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: 🐍 Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
-      - name: Install Python dependencies
+      - name: 📦 Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Install Snyk CLI
-        uses: snyk/actions/setup@v2
-        with:
-          version: latest
+      - name: 🧰 Install Snyk CLI
+        uses: snyk/actions/setup@v1
 
-      - name: Authenticate Snyk
+      - name: 🔐 Authenticate Snyk
         run: snyk auth ${{ secrets.SNYK_TOKEN }}
 
-      # 🔎 SCA: Análise de dependências Python
-      - name: Snyk Open Source (SCA)
+      - name: 📦 Snyk SCA - Python dependencies
         run: snyk test --file=requirements.txt --package-manager=pip
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # 🧠 SAST: Análise de código Python (Flask)
-      - name: Snyk Code (SAST)
+      - name: 🧠 Snyk SAST - Código fonte
         run: snyk code test
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # 🏗 Container: build + scan
-      - name: Build Docker image
+      - name: 🐳 Build Docker image
         run: docker build -t vulpy:latest .
 
-      - name: Snyk Container scan
+      - name: 🐳 Snyk Container Scan
         uses: snyk/actions/docker@v1
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           image: vulpy:latest
           args: test
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # ⚙ IaC: se houver Terraform ou outros
-      - name: Snyk IaC scan
+      - name: 🏗️ Snyk IaC Scan (Terraform, etc.)
         if: ${{ hashFiles('terraform/**.tf') != '' }}
         run: snyk iac test terraform/
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # 📡 Opcional: enviar projeto para o painel do Snyk
-      - name: Monitor project in Snyk Dashboard
+      - name: ☁️ Snyk Monitor (Dashboard)
         run: |
           snyk monitor --file=requirements.txt --package-manager=pip
           snyk code monitor
